@@ -22,13 +22,12 @@ class ImpExController
 	/**
 	* Class version
 	*
-	* This will allow the checking for interoprability of class version in diffrent
+	* This will allow the checking for interoperability of class version in different
 	* versions of ImpEx
 	*
 	* @var    string
 	*/
-	var $_version = '0.0.1';
-
+	private string $_version = '0.0.1';
 
 	/**
 	* Constructor
@@ -36,40 +35,36 @@ class ImpExController
 	* Empty
 	*
 	*/
-	function ImpExController()
+	public function __construct()
 	{
 	}
-
 
 	/**
 	* Places the $_POST values in the session array
 	*
-	* @param	object	sessionobject	The current session object
-	* @param	array	mixed			The $_POST array
+	* @param	object	$sessionobject	The current session object
+	* @param	array	$postarray		The $_POST array
 	*
-	* @return	none
+	* @return	void
 	*/
-	function get_post_values(&$sessionobject, $postarray)
+	public function get_post_values(&$sessionobject, array $postarray): void
 	{
 		// TODO: Need some checking and error handling in here.
-		// NOTE: hard coded the avaiable passable values that can be handeled by interfacing with the modules
-		// NOTE : could handel it in a 000.php check
 		foreach ($postarray as $key => $value)
 		{
 			$sessionobject->add_session_var($key, $value);
 		}
 	}
 
-
 	/**
-	* Modifyes the display depending on the state of the session object.
+	* Modifies the display depending on the state of the session object.
 	*
-	* @param	object	sessionobject	The current session object
-	* @param	object	displayobject	The display object to be updated
+	* @param	object	$sessionobject	The current session object
+	* @param	object	$displayobject	The display object to be updated
 	*
-	* @return	none
+	* @return	void
 	*/
-	function updateDisplay(&$sessionobject, &$displayobject)
+	public function updateDisplay(&$sessionobject, &$displayobject): void
 	{
 		if ($sessionobject->_session_vars['system'] == 'NONE')
 		{
@@ -81,7 +76,6 @@ class ImpExController
 		{
 			$displayobject->update_basic('system', $sessionobject->_session_vars['system']);
 		}
-
 		for ($i = 0; $i <= $sessionobject->get_number_of_modules(); $i++)
 		{
 			$position = str_pad($i, 3, '0', STR_PAD_LEFT);
@@ -92,68 +86,51 @@ class ImpExController
 		}
 	}
 
-
 	/**
 	* Returns the current session or false if there isn't a current one
 	*
-	* @param	object	databaseobject	The database object connected to the dB where the session is stored
-	* @param	string	mixed			Table prefix
+	* @param	object	$Db_object		The database object connected to the dB where the session is stored
+	* @param	string	$targettableprefix	Table prefix
 	*
-	* @return	object|boolean
+	* @return	object|false
 	*/
-	function return_session(&$Db_object, &$targettableprefix)
+	public function return_session(&$Db_object, string $targettableprefix)
 	{
-		$getsession 	= null;
-		$session_db		= null;
-		$session_data	= false;
-
-		if (forcesqlmode)
+		$session_data = false;
+		if (FORCESQLMODE)
 		{
-			$Db_object->query("set sql_mode = ''");
+			$Db_object->query("SET sql_mode = ''");
 		}
-
 		$session_db = $Db_object->query("SELECT data FROM {$targettableprefix}datastore WHERE title = 'ImpExSession'");
 
-		// TODO: switch on database type.
-		if (mysql_num_rows($session_db))
+		if ($session_db && $session_db->num_rows > 0)
 		{
-			$session_data = mysql_result($session_db, 0, 'data');
+			$row = $session_db->fetch_assoc();
+			$session_data = $row['data'];
 		}
 
-		if ($session_data)
-		{
-			return unserialize($session_data);
-		}
-		else
-		{
-			return false;
-		}
+		return $session_data ? unserialize($session_data) : false;
 	}
-
 
 	/**
 	* Stores the current session
 	*
-	* @param	object	databaseobject	The database object connected to the dB where the session is stored
-	* @param	string	mixed			Table prefix
-	* @param	object	sessionobject	The session to store
+	* @param	object	$Db_object		The database object connected to the dB where the session is stored
+	* @param	string	$targettableprefix	Table prefix
+	* @param	object	$ImpExSession	The session to store
 	*
-	* @return	none
+	* @return	void
 	*/
-	function store_session(&$Db_object, &$targettableprefix, &$ImpExSession)
+	public function store_session(&$Db_object, string $targettableprefix, &$ImpExSession): void
 	{
-		// TODO: Need a return values and assurace that it was committed
-
-		if (forcesqlmode)
+		if (FORCESQLMODE)
 		{
-			$Db_object->query("set sql_mode = ''");
+			$Db_object->query("SET sql_mode = ''");
 		}
-
 		$Db_object->query("
-			REPLACE INTO " . $targettableprefix . "datastore (title, data)
-			VALUES ('ImpExSession', '" . addslashes(serialize($ImpExSession)) . "')
+			REPLACE INTO {$targettableprefix}datastore (title, data)
+			VALUES ('ImpExSession', '" . $Db_object->real_escape_string(serialize($ImpExSession)) . "')
 		");
 	}
 }
 /*======================================================================*/
-?>
