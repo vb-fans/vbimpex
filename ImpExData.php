@@ -8,16 +8,14 @@
 || # http://www.vbulletin.com 
 || ####################################################################
 \*======================================================================*/
-
 /**
-* Is the abstract factory that handels data object instantiation.
+* Is the abstract factory that handles data object instantiation.
 *
-* The obect will create itself depending on the type that is passes to
+* The object will create itself depending on the type that is passed to
 * the constructor. The object will consist of a number of elements
 * some being vbmandatory and the other nonvbmandatory.
 *
-* A valid object is one that has values for all the vbmandatroy elements.
-*
+* A valid object is one that has values for all the vbmandatory elements.
 *
 * @package 		ImpEx
 *
@@ -29,12 +27,12 @@ class ImpExData extends ImpExDatabase
 	/**
 	* Class version
 	*
-	* This will allow the checking for interoprability of class version in diffrent
+	* This will allow the checking for interoperability of class version in different
 	* versions of ImpEx
 	*
 	* @var    string
 	*/
-	var $_version = '0.0.1';
+	private string $_version = '0.0.1';
 
 	/**
 	* Data elements store
@@ -43,7 +41,7 @@ class ImpExData extends ImpExDatabase
 	*
 	* @var    array
 	*/
-	var $_values = array();
+	private array $_values = [];
 
 	/**
 	* Element types
@@ -52,7 +50,7 @@ class ImpExData extends ImpExDatabase
 	*
 	* @var    array
 	*/
-	var $_elementtypes = array ('mandatory' , 'nonmandatory');
+	private array $_elementtypes = ['mandatory', 'nonmandatory'];
 
 	/**
 	* Object data type
@@ -61,7 +59,7 @@ class ImpExData extends ImpExDatabase
 	*
 	* @var    string
 	*/
-	var $_datatype = '';
+	private string $_datatype = '';
 
 	/**
 	* Object data type
@@ -70,7 +68,7 @@ class ImpExData extends ImpExDatabase
 	*
 	* @var    string
 	*/
-	var $_producttype = '';
+	private string $_producttype = '';
 
 	/**
 	* is_valid error store
@@ -79,7 +77,7 @@ class ImpExData extends ImpExDatabase
 	*
 	* @var    string
 	*/
-	var $_failedon = '';
+	private string $_failedon = '';
 
 	/**
 	* flag for default values
@@ -88,7 +86,7 @@ class ImpExData extends ImpExDatabase
 	*
 	* @var    boolean
 	*/
-	var $_has_default_values = false;
+	private bool $_has_default_values = false;
 
 	/**
 	* store for default values
@@ -97,16 +95,16 @@ class ImpExData extends ImpExDatabase
 	*
 	* @var    array
 	*/
-	var $_default_values = array();
+	private array $_default_values = [];
 
 	/**
 	* flag for customFields
 	*
-	* Stores if the object has any custom fields, i.e. new profilefiled entries
+	* Stores if the object has any custom fields, i.e. new profile field entries
 	*
 	* @var    boolean
 	*/
-	var $_has_custom_types = FALSE;
+	private bool $_has_custom_types = false;
 
 	/**
 	* store for custom fields
@@ -115,77 +113,74 @@ class ImpExData extends ImpExDatabase
 	*
 	* @var    array
 	*/
-	var $_custom_types = array();
+	private array $_custom_types = [];
 
 	/**
 	* Password flag
 	*
-	* Definies where the  password needs to be md5() before md5($password . $salt) or not.
+	* Defines where the password needs to be md5() before md5($password . $salt) or not.
 	*
 	* @var    boolean
 	*/
-	var $_password_md5_already = false;
+	private bool $_password_md5_already = false;
 
 	/**
 	* Email Associate
 	*
-	* Matches imported users to existing and assoiaties opposed to creating new users.
+	* Matches imported users to existing associations opposed to creating new users.
 	*
 	* @var    boolean
 	*/
-	var	$_auto_email_associate = false;
+	private bool $_auto_email_associate = false;
 
 	/**
 	* Userid Associate
 	*
-	* Matches imported users to existing and assoiaties opposed to creating new users, to be used when mograting
+	* Matches imported users to existing associations opposed to creating new users, to be used when migrating
 	* from a vBulletin installed product to another.
 	*
 	* @var    boolean
 	*/
-	var $_auto_userid_associate = false;
+	private bool $_auto_userid_associate = false;
 
 	/**
 	* Password flag
 	*
-	* Here in case the imported password can't be retrived, i.e. it in crypt so it
+	* Here in case the imported password can't be retrieved, i.e. it is in crypt so it
 	* forces the board to assign a new one.
 	*
 	* @var    boolean
 	*/
-	var $_setforgottenpassword = false;
+	private bool $_setforgottenpassword = false;
 
 	/**
 	* Instantiates a class of the child module being called by index.php
 	*
-	* @param	object	databaseobject	The database that has the vbfiled definitions
-	* @param	object	sessionobject	The current sessionobject.
-	* @param	string	mixed			The name of the object to create user,post,thread,etc
+	* @param	object	$Db_object		The database that has the vbfield definitions
+	* @param	object	$sessionobject	The current session object.
+	* @param	string	$type			The name of the object to create user, post, thread, etc.
+	* @param	string	$product		The product type (default is 'vbulletin').
 	*
-	* @return	none
+	* @return	void
 	*/
-	function ImpExData(&$Db_object, &$sessionobject, $type, $product = 'vbulletin')
+	public function __construct(&$Db_object, &$sessionobject, string $type, string $product = 'vbulletin')
 	{
 		$targetdatabasetype = $sessionobject->get_session_var('targetdatabasetype');
 		$targettableprefix = $sessionobject->get_session_var('targettableprefix');
-		// TODO: Include files with the data objects and checking functions, faster and less dB over head ?
-		$this->_datatype=$type;
-		$this->_producttype=$product;
-
+		$this->_datatype = $type;
+		$this->_producttype = $product;
 		$this->_values = $this->create_data_type(
-				$Db_object,
-				$targetdatabasetype,
-				$targettableprefix,
-				$type,
-				$product
+			$Db_object,
+			$targetdatabasetype,
+			$targettableprefix,
+			$type,
+			$product
 		);
-
-		if (!$this->_values)
-		{
+		if (!$this->_values) {
 			$sessionobject->add_error(
 				'fatal',
 				'ImpExData',
-				"ImpExData contructor failed trying to construct a $type object",
+				"ImpExData constructor failed trying to construct a $type object",
 				'Does the database user have modify permissions? Is it a valid connection? Are all the tables ok?'
 			);
 		}
@@ -194,79 +189,51 @@ class ImpExData extends ImpExDatabase
 	/**
 	* Returns the valid state of the data object
 	*
-	* Searches the mandatory elements for a NULL value, if it finds one it stores it in _failed on and
-	* returns FALSE, other wise returns TRUE
+	* Searches the mandatory elements for a NULL value, if it finds one it stores it in _failedon and
+	* returns FALSE, otherwise returns TRUE
 	*
-	* @return	none
+	* @return	bool
 	*/
-	function is_valid()
+	public function is_valid(): bool
 	{
 		$return_state = true;
 
-		// If any of the madatory values are null return false.
-		// While there check_data($data) on them.
-
-		if (!$this->_values[$this->_datatype]['mandatory'])
-		{
+		if (!isset($this->_values[$this->_datatype]['mandatory'])) {
 			echo "No valid entries in vbfields.php for this type<br />Datatype: {$this->_datatype}";
 			exit;
 		}
 
-		foreach (($this->_values[$this->_datatype]['mandatory']) AS $key => $value)
-		{
+		foreach ($this->_values[$this->_datatype]['mandatory'] as $key => $value) {
 			// Guest user hack
-			if($key == 'userid' OR $key == 'bloguserid' AND $value == 0)
-			{
+			if (($key === 'userid' || $key === 'bloguserid') && $value == 0) {
 				continue;
 			}
-
-			if (empty($value) AND $value !=0 OR $value == '!##NULL##!' OR strlen($value) == '0')
-			{
+			if (empty($value) && $value != 0 || $value === '!##NULL##!' || strlen($value) === 0) {
 				$this->_failedon = $key;
 				return false;
 			}
-
-			if($this->_values[$this->_datatype]['dictionary'][$key] == 'return true;')
-			{
+			if ($this->_values[$this->_datatype]['dictionary'][$key] === 'return true;') {
 				$return_state = true;
-			}
-			else
-			{
-				// TODO: Can't lambda because of appaling memory usage and PHP not cleaning, going to have to local function it
-				// Create a lambda function with the dictionary contents of the dB to check the data
-				$check_data = create_function('$data', $this->_values[$this->_datatype]['dictionary'][$key]);
-
-				if(!$check_data($value))
-				{
+			} else {
+				$check_data = eval('return ' . $this->_values[$this->_datatype]['dictionary'][$key] . ';');
+				if (!$check_data($value)) {
 					$this->_failedon = $key;
 					return false;
 				}
 			}
 		}
 
-		// Check all the nonmandatory ones as well, is there are any - subscriptionlog
-		if (is_array($this->_values[$this->_datatype]['nonmandatory']))
-		{
-			foreach (($this->_values[$this->_datatype]['nonmandatory']) AS $key => $value)
-			{
-				// TODO: Either ALL the database fields need a default or vBfields needs to be able to read a default list
-				if ($value == '!##NULL##!')
-				{
+		// Check all the nonmandatory ones as well, if there are any - subscriptionlog
+		if (is_array($this->_values[$this->_datatype]['nonmandatory'])) {
+			foreach ($this->_values[$this->_datatype]['nonmandatory'] as $key => $value) {
+				if ($value === '!##NULL##!') {
 					$this->_values[$this->_datatype]['nonmandatory'][$key] = ''; // Empty it for the SQL so the database will default to the field default
 				}
-
-				if($this->_values[$this->_datatype]['dictionary'][$key] == 'return true;')
-				{
+				if ($this->_values[$this->_datatype]['dictionary'][$key] === 'return true;') {
 					$return_state = true;
-				}
-				else
-				{
-					// TODO: Can't lambda because of appaling memory usage and PHP not cleaning, going to have to local function it
-					// Create a lambda function with the dictionary contents of the dB to check the data
-					$check_data = create_function('$data', $this->_values[$this->_datatype]['dictionary'][$key]);
-
-					if(!$check_data($value))
-					{
+				} else {
+					$check_data = eval('return ' . $this->_values[$this->_datatype]['dictionary'][$key] . ';');
+					if (!$check_data($value)) {
 						$this->_failedon = $key;
 						return false;
 					}
@@ -277,150 +244,115 @@ class ImpExData extends ImpExDatabase
 	}
 
 	/**
-	* Returns the percentage completness of the object
+	* Returns the percentage completeness of the object
 	*
-	* Calculated the NULL's from the total amount of elements to discover the percentage
+	* Calculates the NULL's from the total amount of elements to discover the percentage
 	* complete that the object is
 	*
 	* @return	double
 	*/
-	function how_complete()
+	public function how_complete(): float
 	{
 		$totalelements = 0;
 		$nullelements = 0;
-
-		foreach ($this->_elementtypes AS $name => $type)
-		{
-			if(is_array($this->_values[$this->_datatype][$type]))
-			{
-				foreach ($this->_values[$this->_datatype][$type] AS $key => $value)
-				{
-					if ($value == '!##NULL##!' OR $value == '' OR $value == NULL)
-					{
+		foreach ($this->_elementtypes as $type) {
+			if (is_array($this->_values[$this->_datatype][$type])) {
+				foreach ($this->_values[$this->_datatype][$type] as $value) {
+					if ($value === '!##NULL##!' || $value === '' || $value === null) {
 						$nullelements++;
 					}
-				$totalelements++;
+					$totalelements++;
 				}
 			}
 		}
-		return number_format(((($totalelements - $nullelements) * 100) / $totalelements), 2, '.', '');
+		return number_format((($totalelements - $nullelements) * 100) / $totalelements, 2, '.', '');
 	}
 
 	/**
 	* Accessor
 	*
-	* @param	string	elementtype		The type of value being retrived
-	* @param	string	name			The name of value being retrived
+	* @param	string	$section		The type of value being retrieved
+	* @param	string	$name			The name of value being retrieved
 	*
-	* @return	mixed	string|NULL
+	* @return	mixed|string|null
 	*/
-	function get_value($section, $name)
+	public function get_value(string $section, string $name)
 	{
-		if ($this->_values[$this->_datatype][$section][$name] != 'NULL')
-		{
-			return $this->_values[$this->_datatype][$section][$name];
-		}
-		else
-		{
-			return false;
-		}
+		return $this->_values[$this->_datatype][$section][$name] ?? null;
 	}
-
 
 	/**
 	* Accessor
 	*
-	* @param	string	elementtype		The type of value being set
-	* @param	string	name			The name of value being set
-	* @param	string	value			The passes value
+	* @param	string	$section		The type of value being set
+	* @param	string	$name			The name of value being set
+	* @param	mixed	$value			The passed value
 	*
-	* @return	boolean
+	* @return	bool
 	*/
-	function set_value($section, $name, $value)
+	public function set_value(string $section, string $name, $value): bool
 	{
-		if (@array_key_exists($name, $this->_values[$this->_datatype][$section]))
-		{
+		if (array_key_exists($name, $this->_values[$this->_datatype][$section])) {
 			$this->_values[$this->_datatype][$section][$name] = $value;
 			return true;
 		}
-		else
-		{
-			return false;
-		}
+		return false;
 	}
-
 
 	/**
 	* Accessor
 	*
-	* @param	string	name			The name of value being set
-	* @param	string	value			The passes value
+	* @param	string	$key			The name of value being set
+	* @param	mixed	$value			The passed value
 	*
-	* @return	boolean
+	* @return	bool
 	*/
-	function add_default_value($key, $value)
+	public function add_default_value(string $key, $value): bool
 	{
-		if (empty($this->_default_values[$key]))
-		{
-			$tempArray = array($key => $value);
-			$this->_default_values = array_merge($this->_default_values, $tempArray);
+		if (empty($this->_default_values[$key])) {
+			$this->_default_values[$key] = $value;
 			$this->_has_default_values = true;
-		}
-		else
-		{
-			$this->_default_values[$name] = $value;
-			$this->_has_default_values = true;
+		} else {
+			$this->_default_values[$key] = $value;
 		}
 		return $this->_has_default_values;
 	}
 
-
 	/**
-	* Accessor : Returns the array of default value
+	* Accessor : Returns the array of default values
 	*
-	* @param	string	name			The name of value being set
-	*
-	* @return	boolean|array
+	* @return	array
 	*/
-	function get_default_values()
+	public function get_default_values(): array
 	{
 		return $this->_default_values;
 	}
 
-
 	/**
 	* Accessor
 	*
-	* @param	string	name			The name of value being set
-	* @param	string	value			The passes value
+	* @param	string	$key			The name of value being set
+	* @param	mixed	$value			The passed value
 	*
-	* @return	boolean
+	* @return	bool
 	*/
-	function add_custom_value($key, $value)
+	public function add_custom_value(string $key, $value): bool
 	{
-		if (empty($this->_custom_types[$key]))
-		{
-			$tempArray = array($key => $value);
-			$this->_custom_types = array_merge($this->_custom_types, $tempArray);
+		if (empty($this->_custom_types[$key])) {
+			$this->_custom_types[$key] = $value;
 			$this->_has_custom_types = true;
-		}
-		else
-		{
-			$this->_custom_types[$name] = $value;
-			$this->_has_custom_types = true;
+		} else {
+			$this->_custom_types[$key] = $value;
 		}
 		return $this->_has_custom_types;
 	}
 
-
 	/**
 	* Accessor : Returns the array of custom values
 	*
-	* @param	string	name			The name of value being set
-	*
-	* @return	boolean|array
+	* @return	array
 	*/
-	function get_custom_values()
+	public function get_custom_values(): array
 	{
 		return $this->_custom_types;
 	}
