@@ -28,9 +28,8 @@ class ImpExDatabase extends ImpExDatabaseCore
 	*
 	* @var    string
 	*/
-	var $_version = '0.0.1';
-
-	var $_customernumber = '[#]customernumber[#]';
+	private string $_version = '0.0.1';
+	private string $_customernumber = '[#]customernumber[#]';
 
 	/**
 	* Constructor
@@ -38,21 +37,20 @@ class ImpExDatabase extends ImpExDatabaseCore
 	* Empty
 	*
 	*/
-	function ImpExDatabase()
+	public function __construct()
 	{
 	}
 
-
-	function import_attachment(&$Db_object, &$databasetype, &$tableprefix, $import_post_id = TRUE)
+	public function import_attachment($Db_object, $databasetype, $tableprefix, bool $import_post_id = true): ?int
 	{
 		switch ($databasetype)
 		{
 			// MySQL database
 			case 'mysql':
 			{
-				if($import_post_id)
+				if ($import_post_id)
 				{
-					if($this->get_value('nonmandatory', 'postid'))
+					if ($this->get_value('nonmandatory', 'postid'))
 					{
 						// Get the real post id
 						$post_id = $Db_object->query_first("
@@ -60,36 +58,31 @@ class ImpExDatabase extends ImpExDatabaseCore
 							FROM " . $tableprefix . "post
 							WHERE
 							importpostid = " . $this->get_value('nonmandatory', 'postid'));
-
-						if(empty($post_id['postid']))
+						if (empty($post_id['postid']))
 						{
 							// Its not there to be attached through.
-							return false;
+							return null;
 						}
 					}
 					else
 					{
 						// No post id !!!
-						return false;
+						return null;
 					}
 				}
 				else
 				{
-					$sql ="
+					$sql = "
 					SELECT userid, postid
 					FROM " . $tableprefix . "post
 					WHERE postid = " . $this->get_value('nonmandatory', 'postid');
-
 					$post_id = $Db_object->query_first($sql);
 				}
-
 				// Update the post attach
-				$Db_object->query("UPDATE " . $tableprefix . "post SET attach = attach+1 WHERE postid = " . $post_id['postid']);
-
+				$Db_object->query("UPDATE " . $tableprefix . "post SET attach = attach + 1 WHERE postid = " . $post_id['postid']);
 				// Ok, so now where is it going ......
 				$attachpath =  $this->get_options_setting($Db_object, $databasetype, $tableprefix, 'attachpath');
 				$attachfile = $this->get_options_setting($Db_object, $databasetype, $tableprefix, 'attachfile');
-
 				$Db_object->query("
 					INSERT INTO " . $tableprefix . "attachment
 					(
@@ -111,12 +104,10 @@ class ImpExDatabase extends ImpExDatabaseCore
 						'" . $post_id['userid'] . "'
 					)
 				");
-
 				$attachment_id = $Db_object->insert_id();
-
 				switch (intval($attachfile))
 				{
-					case '0':	// Straight into the dB
+					case 0: // Straight into the dB
 					{
 						$Db_object->query("
 							UPDATE " . $tableprefix . "attachment
@@ -125,23 +116,19 @@ class ImpExDatabase extends ImpExDatabaseCore
 							filesize = " . intval($this->get_value('nonmandatory', 'filesize'))  . "
 							WHERE attachmentid = {$attachment_id}
 						");
-
 						return $attachment_id;
 					}
-
-					case '1':	// file system OLD naming schema
+					case 1: // file system OLD naming schema
 					{
 						$full_path = $this->fetch_attachment_path($post_id['userid'], $attachpath, false, $attachment_id);
-
-						if($this->vbmkdir(substr($full_path, 0, strrpos($full_path, '/'))))
+						if ($this->vbmkdir(substr($full_path, 0, strrpos($full_path, '/'))))
 						{
 							if ($fp = fopen($full_path, 'wb'))
 							{
 								fwrite($fp, $this->get_value('mandatory', 'filedata'));
 								fclose($fp);
 								$filesize = filesize($full_path);
-
-								if($filesize)
+								if ($filesize)
 								{
 									$Db_object->query("
 										UPDATE " . $tableprefix . "attachment
@@ -149,27 +136,23 @@ class ImpExDatabase extends ImpExDatabaseCore
 										filesize = " . intval($this->get_value('nonmandatory', 'filesize'))  . "
 										WHERE attachmentid = {$attachment_id}
 									");
-
 									return $attachment_id;
 								}
 							}
 						}
-						return false;
+						return null;
 					}
-
-					case '2':	// file system NEW naming schema
+					case 2: // file system NEW naming schema
 					{
 						$full_path = $this->fetch_attachment_path($post_id['userid'], $attachpath, true, $attachment_id);
-
-						if($this->vbmkdir(substr($full_path, 0, strrpos($full_path, '/'))))
+						if ($this->vbmkdir(substr($full_path, 0, strrpos($full_path, '/'))))
 						{
 							if ($fp = fopen($full_path, 'wb'))
 							{
 								fwrite($fp, $this->get_value('mandatory', 'filedata'));
 								fclose($fp);
 								$filesize = filesize($full_path);
-
-								if($filesize)
+								if ($filesize)
 								{
 									$Db_object->query("
 										UPDATE " . $tableprefix . "attachment
@@ -177,47 +160,42 @@ class ImpExDatabase extends ImpExDatabaseCore
 										filesize = " . $this->get_value('nonmandatory', 'filesize')  . "
 										WHERE attachmentid = {$attachment_id}
 									");
-
 									return $attachment_id;
 								}
 							}
 						}
-						return false;
+						return null;
 					}
-					default :
+					default:
 					{
 						// Shouldn't ever get here
-						return false;
+						return null;
 					}
 				}
 			}
-
 			// Postgres Database
 			case 'postgresql':
 			{
-				return false;
+				return null;
 			}
-
 			// other
 			default:
 			{
-				return false;
+				return null;
 			}
 		}
 	}
 
-
-
 	/**
 	* Imports the current object as a vB3 avatar
 	*
-	* @param	object	databaseobject	The database that the function is going to interact with.
-	* @param	string	mixed			The type of database 'mysql', 'postgresql', etc
-	* @param	string	mixed			The prefix to the table name i.e. 'vb3_'
+	* @param	object	$Db_object		The database that the function is going to interact with.
+	* @param	string	$databasetype	The type of database 'mysql', 'postgresql', etc
+	* @param	string	$tableprefix	The prefix to the table name i.e. 'vb3_'
 	*
-	* @return	boolean
+	* @return	int|null
 	*/
-	function import_vb3_avatar(&$Db_object, &$databasetype, &$tableprefix)
+	public function import_vb3_avatar($Db_object, $databasetype, $tableprefix): ?int
 	{
 		switch ($databasetype)
 		{
@@ -239,51 +217,45 @@ class ImpExDatabase extends ImpExDatabaseCore
 						'" . $this->get_value('nonmandatory', 'displayorder') . "'
 					)
 				");
-
 				if ($Db_object->affected_rows())
 				{
 					return $Db_object->insert_id();
 				}
 				else
 				{
-					return false;
+					return null;
 				}
 			}
-
 			// Postgres database
 			case 'postgresql':
 			{
-				return false;
+				return null;
 			}
-
 			// other
 			default:
 			{
-				return false;
+				return null;
 			}
 		}
 	}
 
-
 	/**
-	* Imports the current object as a vB3 avatar
+	* Imports the current object as a vB3 custom avatar
 	*
-	* @param	object	databaseobject	The database that the function is going to interact with.
-	* @param	string	mixed			The type of database 'mysql', 'postgresql', etc
-	* @param	string	mixed			The prefix to the table name i.e. 'vb3_'
+	* @param	object	$Db_object		The database that the function is going to interact with.
+	* @param	string	$databasetype	The type of database 'mysql', 'postgresql', etc
+	* @param	string	$tableprefix	The prefix to the table name i.e. 'vb3_'
 	*
-	* @return	boolean
+	* @return	bool
 	*/
-	function import_vb3_customavatar(&$Db_object, &$databasetype, &$tableprefix)
+	public function import_vb3_customavatar($Db_object, $databasetype, $tableprefix): bool
 	{
 		switch ($databasetype)
 		{
 			// MySQL database
 			case 'mysql':
 			{
-
-
-				$sql ="
+				$sql = "
 					REPLACE INTO " . $tableprefix . "customavatar
 					(
 						importcustomavatarid, userid, avatardata, dateline, filename, visible, filesize
@@ -299,23 +271,13 @@ class ImpExDatabase extends ImpExDatabaseCore
 						'" . $this->get_value('nonmandatory', 'filesize') . "'
 					)
 				";
-
-				if ($Db_object->query($sql))
-				{
-					return true;
-				}
-				else
-				{
-					return false;
-				}
+				return $Db_object->query($sql);
 			}
-
 			// Postgres database
 			case 'postgresql':
 			{
 				return false;
 			}
-
 			// other
 			default:
 			{
@@ -324,23 +286,23 @@ class ImpExDatabase extends ImpExDatabaseCore
 		}
 	}
 
-
 	/**
-	* Imports the an arrary as a ban list in various formats $key => $value, $int => $data
+	* Imports the an array as a ban list in various formats $key => $value, $int => $data
 	*
-	* @param	object	databaseobject	The database that the function is going to interact with.
-	* @param	string	mixed			The type of database 'mysql', 'postgresql', etc
-	* @param	string	mixed			The prefix to the table name i.e. 'vb3_'
+	* @param	object	$Db_object		The database that the function is going to interact with.
+	* @param	string	$databasetype	The type of database 'mysql', 'postgresql', etc
+	* @param	string	$tableprefix	The prefix to the table name i.e. 'vb3_'
+	* @param	array	$list			The list of bans to import.
+	* @param	string	$type			The type of ban (email, IP, user id, etc.)
 	*
-	* @return	boolean
+	* @return	bool
 	*/
-	function import_ban_list(&$Db_object, &$databasetype, &$tableprefix, $list, $type)
+	public function import_ban_list($Db_object, $databasetype, $tableprefix, array $list, string $type): bool
 	{
 		if (empty($list))
 		{
 			return true;
 		}
-
 		switch ($databasetype)
 		{
 			// MySQL database
@@ -348,54 +310,43 @@ class ImpExDatabase extends ImpExDatabaseCore
 			{
 				$sql = '';
 				$internal_list = '';
-
 				switch ($type)
 				{
 					case 'emaillist':
 					{
-						foreach($list as $key => $data)
+						foreach ($list as $data)
 						{
 							$internal_list .= $data . " ";
 						}
-						// For datastore opposed to setting table if it ever gets used
-						// $sql = "UPDATE " . $tableprefix . "settings SET value=CONCAT(value,' " . $list . "') WHERE varname='banemail'";
-
 						$sql = "UPDATE " . $tableprefix . "datastore SET data = CONCAT(data, '$internal_list') WHERE title = 'banemail'";
 					}
 					break;
-
 					case 'iplist':
 					{
-						foreach($list as $key => $ip)
+						foreach ($list as $ip)
 						{
 							$internal_list .= $ip . " ";
 						}
-						// For datastore opposed to setting table
 						$sql = "UPDATE " . $tableprefix . "setting SET value = CONCAT(value, ' $internal_list') WHERE varname = 'banip'";
 					}
 					break;
-
 					case 'namebansfull':
 					{
-						$user_id_list = array();
-						foreach ($list as $key => $vb_user_name)
+						$user_id_list = [];
+						foreach ($list as $vb_user_name)
 						{
 							$banned_userid = $Db_object->query_first("SELECT userid FROM " . $tableprefix . "user WHERE username = '$vb_user_name'");
-
 							$user_id_list[] = $banned_userid['userid'];
 						}
-
 						return $this->import_ban_list($Db_object, $databasetype, $tableprefix, $user_id_list, 'userid');
 					}
 					break;
-
 					case 'userid':
 					{
 						$banned_group_id = $Db_object->query_first("SELECT usergroupid FROM " . $tableprefix . "usergroup WHERE title= 'Banned Users'");
-
-						if($banned_group_id['usergroupid'] != null)
+						if ($banned_group_id['usergroupid'] != null)
 						{
-							foreach($list as $key => $banned_user_id)
+							foreach ($list as $banned_user_id)
 							{
 								$Db_object->query("UPDATE " . $tableprefix . "user SET membergroupids = CONCAT(membergroupids, ' $banned_group_id[usergroupid]') WHERE userid = '$banned_user_id'");
 							}
@@ -403,23 +354,19 @@ class ImpExDatabase extends ImpExDatabaseCore
 						return true;
 					}
 					break;
-
 					default:
 					{
 						return false;
 					}
 				}
-
 				$Db_object->query($sql);
 				return ($Db_object->affected_rows() > 0);
 			}
-
 			// Postgres database
 			case 'postgresql':
 			{
 				return false;
 			}
-
 			// other
 			default:
 			{
@@ -428,18 +375,16 @@ class ImpExDatabase extends ImpExDatabaseCore
 		}
 	}
 
-
-
 	/**
-	* Imports the current objects values as a User
+	* Imports the current object's values as a User
 	*
-	* @param	object	databaseobject	The database that the function is going to interact with.
-	* @param	string	mixed			The type of database 'mysql', 'postgresql', etc
-	* @param	string	mixed			The prefix to the table name i.e. 'vb3_'
+	* @param	object	$Db_object		The database that the function is going to interact with.
+	* @param	string	$databasetype	The type of database 'mysql', 'postgresql', etc
+	* @param	string	$tableprefix	The prefix to the table name i.e. 'vb3_'
 	*
-	* @return	boolean
+	* @return	int|null
 	*/
-	function import_user(&$Db_object, &$databasetype, &$tableprefix)
+	public function import_user($Db_object, $databasetype, $tableprefix): ?int
 	{
 		switch ($databasetype)
 		{
@@ -449,59 +394,38 @@ class ImpExDatabase extends ImpExDatabaseCore
 				// Auto email associate
 				if ($this->_auto_email_associate)
 				{
-					// Do a search for the email address to find the user to match this imported one to :
 					$email_match = $Db_object->query_first("SELECT userid FROM " . $tableprefix . "user WHERE email='". $this->get_value('mandatory', 'email') . "'");
-
-
 					if ($email_match)
 					{
-
-						if($this->associate_user($Db_object, $databasetype, $tableprefix, $this->get_value('mandatory', 'importuserid'), $email_match["userid"]))
+						if ($this->associate_user($Db_object, $databasetype, $tableprefix, $this->get_value('mandatory', 'importuserid'), $email_match["userid"]))
 						{
-							// We matched the email address and associated propperly
 							$result['automerge'] = true;
 							return $result;
 						}
-						else
-						{
-							// Hmmm found the email but didn't associate !!
-						}
-					}
-					else
-					{
-						// There is no email to match with, so return nothing and let the user import normally.
 					}
 				}
 
 				$newpassword = '';
-				$salt =	$this->fetch_user_salt();
-
-				if ($this->_password_md5_already)
-				{
-					 $newpassword = md5($this->get_value('nonmandatory', 'password') . $salt);
-				}
-				else
-				{
-					$newpassword = md5(md5($this->get_value('nonmandatory', 'password')) . $salt);
-				}
+				$salt = $this->fetch_user_salt();
+				$newpassword = $this->_password_md5_already
+					? md5($this->get_value('nonmandatory', 'password') . $salt)
+					: md5(md5($this->get_value('nonmandatory', 'password')) . $salt);
 
 				// Link the admins
-				if(strtolower($this->get_value('mandatory', 'username')) == 'admin')
+				if (strtolower($this->get_value('mandatory', 'username')) == 'admin')
 				{
 					$this->set_value('mandatory', 'username', 'imported_admin');
 				}
 
 				// If there is a dupe username pre_pend "imported_"
 				$double_name = $Db_object->query("SELECT username FROM " . $tableprefix . "user WHERE username='". addslashes($this->get_value('mandatory', 'username')) . "'");
-
-				if($Db_object->num_rows($double_name))
+				if ($Db_object->num_rows($double_name))
 				{
 					$this->set_value('mandatory', 'username', 'imported_' . $this->get_value('mandatory', 'username'));
 				}
 
-
 				$sql = "
-					INSERT INTO	" . $tableprefix . "user
+					INSERT INTO " . $tableprefix . "user
 					(
 						username, email, usergroupid,
 						importuserid, password, salt,
@@ -532,482 +456,7 @@ class ImpExDatabase extends ImpExDatabaseCore
 						'" . addslashes($this->get_value('nonmandatory', 'homepage')) . "',
 						'" . $this->get_value('nonmandatory', 'posts') . "',
 						'" . $this->get_value('nonmandatory', 'joindate') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'icq')) . "',
-						'" . $this->get_value('nonmandatory', 'daysprune') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'aim')) . "',
-						'" . $this->get_value('nonmandatory', 'membergroupids') . "',
-						'" . $this->get_value('nonmandatory', 'displaygroupid') . "',
-						'" . $this->get_value('nonmandatory', 'styleid') . "',
-						'" . $this->get_value('nonmandatory', 'parentemail') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'yahoo')) . "',
-						'" . $this->get_value('nonmandatory', 'showvbcode') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'usertitle')) . "',
-						" . intval($this->get_value('nonmandatory', 'customtitle')) . ",
-						'" . $this->get_value('nonmandatory', 'lastvisit') . "',
-						'" . $this->get_value('nonmandatory', 'lastactivity') . "',
-						'" . $this->get_value('nonmandatory', 'lastpost') . "',
-						'" . $this->get_value('nonmandatory', 'reputation') . "',
-						'" . $this->get_value('nonmandatory', 'reputationlevelid') . "',
-						'" . $this->get_value('nonmandatory', 'timezoneoffset') . "',
-						'" . $this->get_value('nonmandatory', 'pmpopup') . "',
-						'" . $this->get_value('nonmandatory', 'avatarid') . "',
-						'" . $this->get_value('nonmandatory', 'avatarrevision') . "',
-						'" . $this->get_value('nonmandatory', 'birthday') . "',
-						'" . $this->get_value('nonmandatory', 'birthday_search') . "',
-						'" . $this->get_value('nonmandatory', 'maxposts') . "',
-						'" . $this->get_value('nonmandatory', 'startofweek') . "',
-						'" . $this->get_value('nonmandatory', 'ipaddress') . "',
-						'" . $this->get_value('nonmandatory', 'referrerid') . "',
-						'" . $this->get_value('nonmandatory', 'languageid') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'msn')) . "',
-						'" . addslashes($this->get_value('nonmandatory', 'emailstamp')) . "',
-						'" . $this->get_value('nonmandatory', 'threadedmode') . "',
-						'" . $this->get_value('nonmandatory', 'pmtotal') . "',
-						'" . $this->get_value('nonmandatory', 'pmunread') . "',
-						'" . $this->get_value('nonmandatory', 'autosubscribe') . "'
-					)
-				";
-
-				$userdone = $Db_object->query($sql);
-				$userid = $Db_object->insert_id();
-
-				if ($userdone)
-				{		
-					$exists = $Db_object->query_first("SELECT userid FROM " . $tableprefix . "usertextfield WHERE userid = $userid");
-
-					if (!$exists)
-					{
-						if (!$Db_object->query("INSERT INTO " . $tableprefix . "usertextfield (userid) VALUES ($userid)"))
-						{
-							$this->_failedon = "usertextfield fill";
-							return false;
-						}
-
-						if (!$Db_object->query("INSERT INTO " . $tableprefix . "userfield (userid) VALUES ($userid)"))
-						{
-							$this->_failedon = "userfield fill";
-							return false;
-						}
-					}
-
-					if ($this->_has_custom_types)
-					{
-						foreach ($this->get_custom_values() as $key => $value)
-						{
-							if (!$this->import_user_field_value($Db_object, $databasetype, $tableprefix, $key, $value, $userid))
-							{
-								$this->_failedon = "import_user_field_value - $key - $value - $userid";
-								return false;
-							}
-						}
-					}
-
-					if ($this->get_value('nonmandatory', 'avatar') != NULL)
-					{
-						$this->import_avatar($Db_object, $databasetype, $tableprefix,$userid,$this->get_value('nonmandatory', 'avatar'));
-					}
-
-					if ($this->_has_default_values)
-					{
-						foreach ($this->get_default_values() as  $key => $value)
-						{
-							if ($key != 'signature')
-							{
-								if (!$this->import_user_field_value($Db_object, $databasetype, $tableprefix, $key, $value, $userid))
-								{
-									$this->_failedon = "import_user_field_value - $key - $value - $userid";
-									return false;
-								}
-							}
-						}
-					}
-
-					if (array_key_exists('signature',$this->_default_values))
-					{
-						if (!$Db_object->query("UPDATE " . $tableprefix . "usertextfield SET signature='" . $this->_default_values['signature'] . "' WHERE userid='" . $userid ."'"))
-						{
-							$this->_failedon = "usertextfield SET signature";
-							return false;
-						}
-					}
-				}
-				else
-				{
-					return false;
-				}
-
-				return $userid;
-			}
-
-			// Postgres database
-			case 'postgresql':
-			{
-				return false;
-			}
-
-			// other
-			default:
-			{
-				return false;
-			}
-		}
-	}
-
-	// Overridden to maintain salt and password details
-	function import_vb3_user(&$Db_object, &$databasetype, &$tableprefix)
-	{
-		switch ($databasetype)
-		{
-			// MySQL database
-			case 'mysql':
-			{
-				// TODO: Still need to check and see if all the current usersnames being imported are unique
-				if(strtolower($this->get_value('mandatory', 'username')) == 'admin')
-				{
-					$this->set_value('mandatory', 'username', 'admin_old');
-				}
-
-				// Auto email associate
-				if ($this->_auto_email_associate)
-				{
-					// Do a search for the email address to find the user to match this imported one to :
-					$email_match = $Db_object->query_first("SELECT userid FROM " . $tableprefix . "user WHERE email='". $this->get_value('mandatory', 'email') . "'");
-
-
-					if ($email_match)
-					{
-						if($this->associate_user($Db_object, $databasetype, $tableprefix, $this->get_value('mandatory', 'importuserid'), $email_match["userid"]))
-						{
-							// We matched the email address and associated propperly
-							$result['automerge'] = true;
-							return $result;
-						}
-						else
-						{
-							// Hmmm found the email but didn't associate !!
-						}
-					}
-					else
-					{
-						// There is no email to match with, so return nothing and let the user import normally.
-					}
-				}
-
-				// If there is a dupe username pre_pend "imported_"
-				$double_name = $Db_object->query("SELECT username FROM " . $tableprefix . "user WHERE username='". addslashes($this->get_value('mandatory', 'username')) . "'");
-
-				if($Db_object->num_rows($double_name))
-				{
-					$this->set_value('mandatory', 'username', 'imported_' . $this->get_value('mandatory', 'username'));
-				}
-
-				$sql = "
-					INSERT INTO	" . $tableprefix . "user
-					(
-						username, email, usergroupid,
-						importuserid, password, salt,
-						passworddate, options, homepage,
-						posts, joindate, icq,
-						daysprune, aim, membergroupids,
-						displaygroupid, styleid, parentemail,
-						yahoo, showvbcode, usertitle,
-						customtitle, lastvisit, lastactivity,
-						lastpost, reputation, reputationlevelid,
-						timezoneoffset, pmpopup, avatarid,
-						avatarrevision, birthday, birthday_search, maxposts,
-						startofweek, ipaddress, referrerid,
-						languageid, msn, emailstamp,
-						threadedmode, pmtotal, pmunread,
-						autosubscribe
-					)
-					VALUES
-					(
-						'" . addslashes($this->get_value('mandatory', 'username')) . "',
-						'" . addslashes($this->get_value('mandatory', 'email')) . "',
-						'" . $this->get_value('mandatory', 'usergroupid') . "',
-						'" . $this->get_value('mandatory', 'importuserid') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'password')) . "',
-						'" . addslashes($this->get_value('nonmandatory', 'salt')) . "',
-						'" . $this->get_value('nonmandatory', 'passworddate') . "',
-						'" . $this->get_value('nonmandatory', 'options') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'homepage')) . "',
-						'" . $this->get_value('nonmandatory', 'posts') . "',
-						'" . $this->get_value('nonmandatory', 'joindate') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'icq')) . "',
-						'" . $this->get_value('nonmandatory', 'daysprune') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'aim')) . "',
-						'" . $this->get_value('nonmandatory', 'membergroupids') . "',
-						'" . $this->get_value('nonmandatory', 'displaygroupid') . "',
-						'" . $this->get_value('nonmandatory', 'styleid') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'parentemail')) . "',
-						'" . addslashes($this->get_value('nonmandatory', 'yahoo')) . "',
-						'" . $this->get_value('nonmandatory', 'showvbcode') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'usertitle')) . "',
-						'" . addslashes($this->get_value('nonmandatory', 'customtitle')) . "',
-						'" . $this->get_value('nonmandatory', 'lastvisit') . "',
-						'" . $this->get_value('nonmandatory', 'lastactivity') . "',
-						'" . $this->get_value('nonmandatory', 'lastpost') . "',
-						'" . $this->get_value('nonmandatory', 'reputation') . "',
-						'" . $this->get_value('nonmandatory', 'reputationlevelid') . "',
-						'" . $this->get_value('nonmandatory', 'timezoneoffset') . "',
-						'" . $this->get_value('nonmandatory', 'pmpopup') . "',
-						'" . $this->get_value('nonmandatory', 'avatarid') . "',
-						'" . $this->get_value('nonmandatory', 'avatarrevision') . "',
-						'" . $this->get_value('nonmandatory', 'birthday') . "',
-						'" . $this->get_value('nonmandatory', 'birthday_search') . "',
-						'" . $this->get_value('nonmandatory', 'maxposts') . "',
-						'" . $this->get_value('nonmandatory', 'startofweek') . "',
-						'" . $this->get_value('nonmandatory', 'ipaddress') . "',
-						'" . $this->get_value('nonmandatory', 'referrerid') . "',
-						'" . $this->get_value('nonmandatory', 'languageid') . "',
-						'" . addslashes($this->get_value('nonmandatory', 'msn')) . "',
-						'" . $this->get_value('nonmandatory', 'emailstamp') . "',
-						'" . $this->get_value('nonmandatory', 'threadedmode') . "',
-						'" . $this->get_value('nonmandatory', 'pmtotal') . "',
-						'" . $this->get_value('nonmandatory', 'pmunread') . "',
-						'" . $this->get_value('nonmandatory', 'autosubscribe') . "'
-					)
-				";
-
-				$userdone = $Db_object->query($sql);
-				$userid = $Db_object->insert_id();
-
-				if ($userdone)
-				{
-					$exists = $Db_object->query_first("SELECT userid FROM " . $tableprefix . "usertextfield WHERE userid = $userid");
-
-					if (!$exists)
-					{
-						if (!$Db_object->query("INSERT INTO " . $tableprefix . "usertextfield (userid) VALUES ($userid)"))
-						{
-							$this->_failedon = "usertextfield fill";
-							return false;
-						}
-
-						if (!$Db_object->query("INSERT INTO " . $tableprefix . "userfield (userid) VALUES ($userid)"))
-						{
-							$this->_failedon = "userfield fill";
-							return false;
-						}
-					}
-
-					if ($this->_has_default_values)
-					{
-						foreach ($this->get_default_values() as  $key => $value)
-						{
-							if ($key != 'signature')
-							{
-								if (!$this->import_user_field_value($Db_object, $databasetype, $tableprefix, $key, $value, $userid))
-								{
-									$this->_failedon = "import_user_field_value - $key - $value - $userid";
-									return false;
-								}
-							}
-						}
-					}
-
-					if (array_key_exists('signature',$this->_default_values))
-					{
-						if (!$Db_object->query("UPDATE " . $tableprefix . "usertextfield SET signature='" . addslashes($this->_default_values['signature']) . "' WHERE userid='" . $userid ."'"))
-						{
-							$this->_failedon = "usertextfield SET signature";
-							return false;
-						}
-					}
-				}
-				else
-				{
-					return false;
-				}
-
-				return $userid;
-			}
-
-			// Postgres database
-			case 'postgresql':
-			{
-				return false;
-			}
-
-			// other
-			default:
-			{
-				return false;
-			}
-		}
-	}
-
-
-	/**
-	* Imports the users avatar from a local file or URL.
-	*
-	* @param	object	databaseobject	The database that the function is going to interact with.
-	* @param	string	mixed			The type of database 'mysql', 'postgresql', etc
-	* @param	string	mixed			The prefix to the table name i.e. 'vb3_'
-	* @param	string	int		The userid
-	* @param	string	int		The location of the avatar file
-	*
-	* @return	insert_id
-	*/
-	function import_avatar(&$Db_object, &$databasetype, &$tableprefix, $userid, $file)
-	{
-		if ($filenum = @fopen($file, 'r'))
-		{
-			$contents = $this->vb_file_get_contents($file);
-
-			$size = getimagesize($file);
-
-			if($size)
-			{
-				$width 	= $size[0];
-				$height = $size[1];
-			}
-			else
-			{
-				$width 	= '0';
-				$height = '0';
-			}
-
-			if(!$file_sz = @filesize($file))
-			{
-				$file_sz = 0;
-			}
-
-			$urlbits = parse_url($file);
-			$pathbits = pathinfo($urlbits['path']);
-
-			$Db_object->query("
-				INSERT INTO " . $tableprefix . "customavatar
-					(userid, avatardata, dateline, filename, filesize)
-				VALUES
-				(
-					$userid,
-					'" . addslashes($contents) . "',
-					NOW(),
-					'" . addslashes($pathbits['basename'])."',
-					". $file_sz . "
-				)
-			");
-
-			#, width, height
-			# {$width},
-			# {$height}
-
-			if ($Db_object->affected_rows())
-			{
-				return $Db_object->insert_id();
-			}
-			else
-			{
-				return false;
-			}
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-
-	/**
-	* Imports a usergroup
-	*
-	* @param	object	databaseobject	The database that the function is going to interact with.
-	* @param	string	mixed			The type of database 'mysql', 'postgresql', etc
-	* @param	string	mixed			The prefix to the table name i.e. 'vb3_'
-	*
-	* @return	insert_id
-	*/
-	function import_user_group(&$Db_object, &$databasetype, &$tableprefix)
-	{
-		switch ($databasetype)
-		{
-			case 'mysql':
-			{
-				$cols = $Db_object->query("describe {$tableprefix}usergroup");
-				$there = false;
-
-				while ($col = $Db_object->fetch_array($cols))
-				{
-					if($col['Field'] == 'pmforwardmax')
-					{
-						$there = true;
-					}
-				}
-
-				if(!$there)
-				{
-					$Db_object->query("ALTER TABLE `{$tableprefix}usergroup` ADD `pmforwardmax` SMALLINT( 5 ) UNSIGNED DEFAULT '5' NOT NULL");
-				}
-
-				$Db_object->query("
-					INSERT INTO " . $tableprefix . "usergroup
-					(
-						importusergroupid, title, description,
-						usertitle, passwordexpires, passwordhistory,
-						pmquota, pmsendmax, pmforwardmax,
-						opentag, closetag, canoverride,
-						ispublicgroup, forumpermissions, pmpermissions,
-						calendarpermissions, wolpermissions, adminpermissions,
-						genericpermissions, genericoptions, attachlimit,
-						avatarmaxwidth, avatarmaxheight, avatarmaxsize,
-						profilepicmaxwidth, profilepicmaxheight, profilepicmaxsize
-					)
-					VALUES
-					(
-						'" . $this->get_value('mandatory', 'importusergroupid') . "',
-						'" . addslashes($this->get_value('nonmandatory','title')) . "',
-						'" . addslashes($this->get_value('nonmandatory','description')) . "',
-						'" . addslashes($this->get_value('nonmandatory','usertitle')) . "',
-						'" . $this->get_value('nonmandatory','passwordexpires') . "',
-						'" . $this->get_value('nonmandatory','passwordhistory') . "',
-						'" . $this->get_value('nonmandatory','pmquota') . "',
-						'" . $this->get_value('nonmandatory','pmsendmax') . "',
-						'" . $this->get_value('nonmandatory','pmforwardmax') . "',
-						'" . addslashes($this->get_value('nonmandatory','opentag')) . "',
-						'" . addslashes($this->get_value('nonmandatory','closetag')) . "',
-						'" . $this->get_value('nonmandatory','canoverride') . "',
-						'" . $this->get_value('nonmandatory','ispublicgroup') . "',
-						'" . $this->get_value('nonmandatory','forumpermissions') . "',
-						'" . $this->get_value('nonmandatory','pmpermissions') . "',
-						'" . $this->get_value('nonmandatory','calendarpermissions') . "',
-						'" . $this->get_value('nonmandatory','wolpermissions') . "',
-						'" . $this->get_value('nonmandatory','adminpermissions') . "',
-						'" . $this->get_value('nonmandatory','genericpermissions') . "',
-						'" . $this->get_value('nonmandatory','genericoptions') . "',
-						'" . $this->get_value('nonmandatory','attachlimit') . "',
-						'" . $this->get_value('nonmandatory','avatarmaxwidth') . "',
-						'" . $this->get_value('nonmandatory','avatarmaxheight') . "',
-						'" . $this->get_value('nonmandatory','avatarmaxsize') . "',
-						'" . $this->get_value('nonmandatory','profilepicmaxwidth') . "',
-						'" . $this->get_value('nonmandatory','profilepicmaxheight') . "',
-						'" . $this->get_value('nonmandatory','profilepicmaxsize') . "'
-					)
-				");
-				if ($Db_object->affected_rows())
-				{
-					return $Db_object->insert_id();
-				}
-				else
-				{
-					return false;
-				}
-			}
-
-			// Postgres database
-			case 'postgresql':
-			{
-				return false;
-			}
-
-			// other
-			default:
-			{
-				return false;
-			}
-		}
-	}
-
+						'" . addslashes($this->get_value('nonmandatory', 'icq')) .
 
 	/**
 	* Imports the current objects values as a Forum
@@ -1575,8 +1024,6 @@ class ImpExDatabase extends ImpExDatabaseCore
 			}
 		}
 	}
-
-
 
 	/**
 	* Import a poll from one vB3 board to another
